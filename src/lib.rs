@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 extern crate hyper;
 extern crate hyper_tls;
 extern crate serde;
@@ -8,8 +10,8 @@ use hyper::{Client, Request};
 use hyper::rt::{Future, Stream};
 use hyper_tls::HttpsConnector;
 
-pub const SANDBOX : &'static str =  "https://api-public.sandbox.pro.coinbase.com";
-pub const LIVE : &'static str =  "https://api.pro.coinbase.com";
+pub const SANDBOX : &str =  "https://api-public.sandbox.pro.coinbase.com";
+pub const LIVE : &str =  "https://api.pro.coinbase.com";
 
 pub struct PublicClient{
   client : Client<HttpsConnector<hyper::client::HttpConnector>, hyper::Body>,
