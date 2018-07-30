@@ -1,0 +1,7 @@
+match_arm_blocks = false
+merge_imports = true
+reorder_impl_items = true
+space_before_colon = true
+spaces_around_ranges = true
+tab_spaces = 2
+use_field_init_shorthand = true

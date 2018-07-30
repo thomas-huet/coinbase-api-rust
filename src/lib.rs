@@ -3,17 +3,20 @@
 extern crate hyper;
 extern crate hyper_tls;
 extern crate serde;
-#[macro_use] extern crate serde_derive;
+#[macro_use]
+extern crate serde_derive;
 extern crate serde_json;
 
-use hyper::{Client, Request};
-use hyper::rt::{Future, Stream};
+use hyper::{
+  rt::{Future, Stream},
+  Client, Request,
+};
 use hyper_tls::HttpsConnector;
 
-pub const SANDBOX : &str =  "https://api-public.sandbox.pro.coinbase.com";
-pub const LIVE : &str =  "https://api.pro.coinbase.com";
+pub const SANDBOX : &str = "https://api-public.sandbox.pro.coinbase.com";
+pub const LIVE : &str = "https://api.pro.coinbase.com";
 
-pub struct PublicClient{
+pub struct PublicClient {
   client : Client<HttpsConnector<hyper::client::HttpConnector>, hyper::Body>,
   base : &'static str,
 }
@@ -22,17 +25,20 @@ impl PublicClient {
   pub fn new(base : &'static str) -> Result<Self, hyper_tls::Error> {
     let mut https = HttpsConnector::new(4)?;
     https.https_only(true);
-    Ok(PublicClient{
+    Ok(PublicClient {
       client : Client::builder().build::<_, hyper::Body>(https),
-      base
+      base,
     })
-  } 
+  }
 }
 
 #[derive(Debug)]
 pub enum Error {
   HttpError(hyper::error::Error),
-  JsonError(serde_json::Error, Result<String, std::string::FromUtf8Error>),
+  JsonError(
+    serde_json::Error,
+    Result<String, std::string::FromUtf8Error>,
+  ),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -49,23 +55,24 @@ pub struct Product {
 }
 
 impl PublicClient {
-  pub fn products(&self) -> impl Future<Item=Vec<Product>, Error=Error> {
+  pub fn products(&self) -> impl Future<Item = Vec<Product>, Error = Error> {
     let mut uri = self.base.to_string();
     uri.push_str("/products");
 
     let req = Request::builder()
       .uri(uri)
-      .header(hyper::header::USER_AGENT,"coinbase-api-rust")
-      .body(hyper::Body::empty()).unwrap();
+      .header(hyper::header::USER_AGENT, "coinbase-api-rust")
+      .body(hyper::Body::empty())
+      .unwrap();
 
-    self.client.request(req).and_then(|res| {
-      res.into_body().concat2()
-    }).map_err(|err| {
-      Error::HttpError(err)
-    }).and_then(|body| {
-      serde_json::from_slice(body.as_ref()).map_err(|err| {
-        Error::JsonError(err, String::from_utf8(body.as_ref().to_vec()))
+    self
+      .client
+      .request(req)
+      .and_then(|res| res.into_body().concat2())
+      .map_err(|err| Error::HttpError(err))
+      .and_then(|body| {
+        serde_json::from_slice(body.as_ref())
+          .map_err(|err| Error::JsonError(err, String::from_utf8(body.as_ref().to_vec())))
       })
-    })
   }
 }
