@@ -1,7 +1,13 @@
 [package]
 name = "coinbase-api"
 version = "0.1.0"
-authors = ["Thomas HUET <cargo@thomash.fr>"]
+authors = ["Thomas HUET <crates@thomash.fr>"]
+description = "Client library for the Coinbase Pro API."
+repository = "https://github.com/thomas-huet/coinbase-api-rust"
+readme = "README.md"
+keywords = ["coinbase"]
+categories = ["api-bindings"]
+license = "AGPL-3.0"
 
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
