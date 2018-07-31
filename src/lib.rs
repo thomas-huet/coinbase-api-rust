@@ -61,7 +61,7 @@ impl PublicClient {
       .client
       .request(req)
       .and_then(|res| res.into_body().concat2())
-      .map_err(|err| Error::HttpError(err))
+      .map_err(Error::HttpError)
       .and_then(|body| {
         serde_json::from_slice(body.as_ref())
           .map_err(|err| Error::JsonError(err, String::from_utf8(body.as_ref().to_vec())))
@@ -153,6 +153,28 @@ impl PublicClient {
     uri.push_str(id);
     uri.push_str("/book?");
     uri.push_str(level.to_str());
+
+    self.get(uri)
+  }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Ticker {
+  pub trade_id : u64,
+  pub price : Num,
+  pub size : Num,
+  pub bid : Num,
+  pub ask : Num,
+  pub volume : Num,
+  pub time : String,
+}
+
+impl PublicClient {
+  pub fn ticker(&self, id : &str) -> impl Future<Item = Ticker, Error = Error> {
+    let mut uri = self.base.to_string();
+    uri.push_str("/products/");
+    uri.push_str(id);
+    uri.push_str("/ticker");
 
     self.get(uri)
   }
