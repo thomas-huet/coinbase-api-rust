@@ -35,21 +35,21 @@ fn main() {
 
 ## Progress
 
-### Working
+### Implemented
 
 - Market Data API:
   - get products
   - get product order book
   - get product ticker
   - get trades (not paginated)
+  - 24h stats
+  - currencies
+  - time
 
 ### Not implemented yet
 
 - Market Data API:
   - historic rates
-  - 24h stats
-  - currencies
-  - time
   - pagination
 - Private API
 - Websocket Feed
