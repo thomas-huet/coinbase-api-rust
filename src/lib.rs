@@ -30,35 +30,11 @@ impl PublicClient {
       base,
     })
   }
-}
 
-#[derive(Debug)]
-pub enum Error {
-  HttpError(hyper::error::Error),
-  JsonError(
-    serde_json::Error,
-    Result<String, std::string::FromUtf8Error>,
-  ),
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Num(String);
-
-#[derive(Serialize, Deserialize)]
-pub struct Product {
-  pub id : String,
-  pub base_currency : String,
-  pub quote_currency : String,
-  pub base_min_size : Num,
-  pub base_max_size : Num,
-  pub quote_increment : Num,
-}
-
-impl PublicClient {
-  pub fn products(&self) -> impl Future<Item = Vec<Product>, Error = Error> {
-    let mut uri = self.base.to_string();
-    uri.push_str("/products");
-
+  fn get<T>(&self, uri : String) -> impl Future<Item = T, Error = Error>
+  where
+    T : serde::de::DeserializeOwned,
+  {
     let req = Request::builder()
       .uri(uri)
       .header(hyper::header::USER_AGENT, "coinbase-api-rust")
@@ -74,5 +50,94 @@ impl PublicClient {
         serde_json::from_slice(body.as_ref())
           .map_err(|err| Error::JsonError(err, String::from_utf8(body.as_ref().to_vec())))
       })
+  }
+}
+
+#[derive(Debug)]
+pub enum Error {
+  HttpError(hyper::error::Error),
+  JsonError(
+    serde_json::Error,
+    Result<String, std::string::FromUtf8Error>,
+  ),
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Num(String);
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Product {
+  pub id : String,
+  pub base_currency : String,
+  pub quote_currency : String,
+  pub base_min_size : Num,
+  pub base_max_size : Num,
+  pub quote_increment : Num,
+}
+
+impl PublicClient {
+  pub fn products(&self) -> impl Future<Item = Vec<Product>, Error = Error> {
+    let mut uri = self.base.to_string();
+    uri.push_str("/products");
+
+    self.get(uri)
+  }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AggregatedBook {
+  pub sequence : u64,
+  pub bids : Vec<(Num, Num, u64)>,
+  pub asks : Vec<(Num, Num, u64)>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct FullBook {
+  pub sequence : u64,
+  pub bids : Vec<(Num, Num, String)>,
+  pub asks : Vec<(Num, Num, String)>,
+}
+
+pub mod book_level {
+  use AggregatedBook;
+  use FullBook;
+
+  pub struct Best();
+  pub struct Top50();
+  pub struct Full();
+
+  pub trait BookLevel<T> {
+    fn to_str(&self) -> &str;
+  }
+
+  impl BookLevel<AggregatedBook> for Best {
+    fn to_str(&self) -> &str { "level=1" }
+  }
+
+  impl BookLevel<AggregatedBook> for Top50 {
+    fn to_str(&self) -> &str { "level=2" }
+  }
+
+  impl BookLevel<FullBook> for Full {
+    fn to_str(&self) -> &str { "level=3" }
+  }
+}
+
+impl PublicClient {
+  pub fn book<T>(
+    &self,
+    id : &str,
+    level : &book_level::BookLevel<T>,
+  ) -> impl Future<Item = T, Error = Error>
+  where
+    T : serde::de::DeserializeOwned,
+  {
+    let mut uri = self.base.to_string();
+    uri.push_str("/products/");
+    uri.push_str(id);
+    uri.push_str("/book?");
+    uri.push_str(level.to_str());
+
+    self.get(uri)
   }
 }
