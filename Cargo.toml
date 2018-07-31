@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Thomas HUET <cargo@thomash.fr>"]
 
 [dependencies]
+chrono = { version = "0.4", features = ["serde"] }
 hyper = "0.12"
 hyper-tls = "0.3"
 serde = "1.0"

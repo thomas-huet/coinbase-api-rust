@@ -16,6 +16,7 @@
 
 #![forbid(unsafe_code)]
 
+extern crate chrono;
 extern crate hyper;
 extern crate hyper_tls;
 extern crate serde;
@@ -78,10 +79,10 @@ pub enum Error {
   ),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct Num(String);
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct Product {
   pub id : String,
   pub base_currency : String,
@@ -100,14 +101,14 @@ impl PublicClient {
   }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct AggregatedBook {
   pub sequence : u64,
   pub bids : Vec<(Num, Num, u64)>,
   pub asks : Vec<(Num, Num, u64)>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct FullBook {
   pub sequence : u64,
   pub bids : Vec<(Num, Num, String)>,
@@ -158,7 +159,7 @@ impl PublicClient {
   }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct Ticker {
   pub trade_id : u64,
   pub price : Num,
@@ -166,7 +167,7 @@ pub struct Ticker {
   pub bid : Num,
   pub ask : Num,
   pub volume : Num,
-  pub time : String,
+  pub time : chrono::DateTime<chrono::Utc>,
 }
 
 impl PublicClient {
