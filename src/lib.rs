@@ -197,7 +197,7 @@ pub struct Trade {
 /// - `close`: Closing price (last trade) in the bucket interval.
 /// - `volume`: Volume of trading activity during the bucket interval.
 #[derive(Deserialize, Debug)]
-pub struct Candle(u64, Decimal, Decimal, Decimal, Decimal, Decimal);
+pub struct Candle(u64, f64, f64, f64, f64, f64);
 
 /// Trading stats for a product.
 /// `volume` is in base currency units. `open`, `high`, `low` are in quote currency units.
@@ -259,7 +259,7 @@ impl MarketDataClient {
     })
   }
 
-  fn get<T>(&self, uri : String) -> impl Future<Item = T, Error = Error>
+  fn get<T>(&self, uri : &str) -> impl Future<Item = T, Error = Error>
   where
     T : serde::de::DeserializeOwned,
   {
@@ -283,7 +283,7 @@ impl MarketDataClient {
   pub fn products(&self) -> impl Future<Item = Vec<Product>, Error = Error> {
     let mut uri = self.base.to_string();
     uri.push_str("/products");
-    self.get(uri)
+    self.get(&uri)
   }
 
   /// Retrieves a list of open orders for a product.
@@ -304,7 +304,7 @@ impl MarketDataClient {
     uri.push_str(product_id);
     uri.push_str("/book?");
     uri.push_str(level.to_str());
-    self.get(uri)
+    self.get(&uri)
   }
 
   /// Retrieves information about the last trade (tick), best bid/ask and 24h volume.
@@ -313,7 +313,7 @@ impl MarketDataClient {
     uri.push_str("/products/");
     uri.push_str(product_id);
     uri.push_str("/ticker");
-    self.get(uri)
+    self.get(&uri)
   }
 
   /// Lists the latest trades for a product.
@@ -322,7 +322,44 @@ impl MarketDataClient {
     uri.push_str("/products/");
     uri.push_str(product_id);
     uri.push_str("/trades");
-    self.get(uri)
+    self.get(&uri)
+  }
+
+  /// Retrieves historic rates for a product.
+  /// `granularity` must be one of { one minute, five minutes, fifteen minutes, one hour, six hours, one day }.
+  /// The maximum number of data points for a single request is 300 candles.
+  /// If your selection of start/end time and granularity will result in more than 300 data points, your request will be rejected.
+  pub fn candles(
+    &self,
+    product_id : &str,
+    start : &chrono::DateTime<chrono::Utc>,
+    end : &chrono::DateTime<chrono::Utc>,
+    granularity : &chrono::Duration,
+  ) -> impl Future<Item = Vec<Candle>, Error = Error> {
+    let mut uri = self.base.to_string();
+    uri.push_str("/products/");
+    uri.push_str(product_id);
+    uri.push_str("/candles?start=");
+    uri.push_str(&start.to_rfc3339_opts(chrono::SecondsFormat::Millis, true));
+    uri.push_str("&end=");
+    uri.push_str(&end.to_rfc3339_opts(chrono::SecondsFormat::Millis, true));
+    uri.push_str("&granularity=");
+    uri.push_str(&granularity.num_seconds().to_string());
+    self.get(&uri)
+  }
+
+  /// Retrieves the latest 300 data points.
+  pub fn latest_candles(
+    &self,
+    product_id : &str,
+    granularity : &chrono::Duration,
+  ) -> impl Future<Item = Vec<Candle>, Error = Error> {
+    let mut uri = self.base.to_string();
+    uri.push_str("/products/");
+    uri.push_str(product_id);
+    uri.push_str("/candles?granularity=");
+    uri.push_str(&granularity.num_seconds().to_string());
+    self.get(&uri)
   }
 
   /// Retrieves 24 hr stats for the product.
@@ -331,20 +368,20 @@ impl MarketDataClient {
     uri.push_str("/products/");
     uri.push_str(product_id);
     uri.push_str("/stats");
-    self.get(uri)
+    self.get(&uri)
   }
 
   /// Lists known currencies.
   pub fn currencies(&self) -> impl Future<Item = Vec<Currency>, Error = Error> {
     let mut uri = self.base.to_string();
     uri.push_str("/currencies");
-    self.get(uri)
+    self.get(&uri)
   }
 
   /// Gets the API server time.
   pub fn time(&self) -> impl Future<Item = ServerTime, Error = Error> {
     let mut uri = self.base.to_string();
     uri.push_str("/time");
-    self.get(uri)
+    self.get(&uri)
   }
 }

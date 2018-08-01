@@ -37,20 +37,11 @@ fn main() {
 
 ### Implemented
 
-- Market Data API:
-  - get products
-  - get product order book
-  - get product ticker
-  - get trades (not paginated)
-  - 24h stats
-  - currencies
-  - time
+- Market Data API (without pagination)
 
 ### Not implemented yet
 
-- Market Data API:
-  - historic rates
-  - pagination
+- pagination
 - Private API
 - Websocket Feed
 - FIX API
