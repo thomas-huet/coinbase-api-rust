@@ -44,19 +44,16 @@
 //!}
 //!```
 
+extern crate base64;
 extern crate chrono;
+extern crate hmac;
 extern crate hyper;
 extern crate hyper_tls;
 extern crate serde;
+extern crate sha2;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
-
-use hyper::{
-  rt::{Future, Stream},
-  Client, Request,
-};
-use hyper_tls::HttpsConnector;
 
 /// A decimal number with full precision.
 #[derive(Serialize, Deserialize, Debug)]
@@ -231,6 +228,12 @@ pub const SANDBOX : &str = "https://api-public.sandbox.pro.coinbase.com";
 /// Be sure to test your code on the sandbox API before trying the live one.
 pub const LIVE : &str = "https://api.pro.coinbase.com";
 
+use hyper::{
+  rt::{Future, Stream},
+  Client, Request,
+};
+use hyper_tls::HttpsConnector;
+
 /// Errors that can happen during a request to the API.
 #[derive(Debug)]
 pub enum Error {
@@ -383,5 +386,101 @@ impl MarketDataClient {
     let mut uri = self.base.to_string();
     uri.push_str("/time");
     self.get(&uri)
+  }
+}
+
+/// Description of a trading account.
+#[derive(Deserialize, Debug)]
+pub struct Account {
+  pub id : String,
+  pub currency : String,
+  pub balance : Decimal,
+  pub available : Decimal,
+  pub hold : Decimal,
+  pub profile_id : String,
+}
+
+fn now() -> u64 {
+  std::time::SystemTime::now()
+    .duration_since(std::time::UNIX_EPOCH)
+    .unwrap()
+    .as_secs()
+}
+
+/// HTTP client for the authenticated private API.
+pub struct PrivateClient {
+  client : Client<HttpsConnector<hyper::client::HttpConnector>, hyper::Body>,
+  base : &'static str,
+  key : String,
+  secret : String,
+  passphrase : String,
+}
+
+use hmac::{Hmac, Mac};
+use sha2::Sha256;
+
+type HmacSha256 = Hmac<Sha256>;
+
+impl PrivateClient {
+  /// Creates a new client.
+  /// The `base` argument should be `SANDBOX` or `LIVE`.
+  pub fn new(
+    base : &'static str,
+    key : String,
+    secret : String,
+    passphrase : String,
+  ) -> Result<Self, hyper_tls::Error> {
+    let mut https = HttpsConnector::new(4)?;
+    https.https_only(true);
+    Ok(PrivateClient {
+      client : Client::builder().build::<_, hyper::Body>(https),
+      base,
+      key,
+      secret,
+      passphrase,
+    })
+  }
+
+  fn sign(&self, timestamp : u64, method : hyper::Method, path : &str, body : &str) -> String {
+    let mut message = timestamp.to_string();
+    message.push_str(method.as_str());
+    message.push_str(path);
+    message.push_str(body);
+    let mut mac = HmacSha256::new_varkey(&base64::decode(&self.secret).unwrap()).unwrap();
+    mac.input(message.as_bytes());
+    base64::encode(&mac.result().code())
+  }
+
+  fn get<T>(&self, query : &str) -> impl Future<Item = T, Error = Error>
+  where
+    T : serde::de::DeserializeOwned,
+  {
+    let mut uri = self.base.to_string();
+    uri.push_str(query);
+    let timestamp = now();
+    let req = Request::builder()
+      .uri(uri)
+      .header(hyper::header::USER_AGENT, "coinbase-api-rust")
+      .header("cb-access-key", self.key.as_str())
+      .header("cb-access-passphrase", self.passphrase.as_str())
+      .header("cb-access-timestamp", timestamp)
+      .header(
+        "cb-access-sign",
+        self.sign(timestamp, hyper::Method::GET, query, "").as_str(),
+      ).body(hyper::Body::empty())
+      .unwrap();
+    self
+      .client
+      .request(req)
+      .and_then(|res| res.into_body().concat2())
+      .map_err(Error::HttpError)
+      .and_then(|body| {
+        serde_json::from_slice(body.as_ref())
+          .map_err(|err| Error::JsonError(err, String::from_utf8(body.as_ref().to_vec())))
+      })
+  }
+
+  pub fn accounts(&self) -> impl Future<Item = Vec<Account>, Error = Error> {
+    self.get("/accounts")
   }
 }
