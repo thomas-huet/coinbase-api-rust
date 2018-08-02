@@ -55,6 +55,8 @@ extern crate sha2;
 extern crate serde_derive;
 extern crate serde_json;
 
+type DateTime = chrono::DateTime<chrono::Utc>;
+
 /// A decimal number with full precision.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Decimal(String);
@@ -165,7 +167,7 @@ pub struct Ticker {
   pub bid : Decimal,
   pub ask : Decimal,
   pub volume : Decimal,
-  pub time : chrono::DateTime<chrono::Utc>,
+  pub time : DateTime,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -178,7 +180,7 @@ pub enum Side {
 /// Description of a trade.
 #[derive(Deserialize, Debug)]
 pub struct Trade {
-  pub time : chrono::DateTime<chrono::Utc>,
+  pub time : DateTime,
   pub trade_id : u64,
   pub price : Decimal,
   pub size : Decimal,
@@ -217,7 +219,7 @@ pub struct Currency {
 /// Time of the API server.
 #[derive(Deserialize, Debug)]
 pub struct ServerTime {
-  pub iso : chrono::DateTime<chrono::Utc>,
+  pub iso : DateTime,
   pub epoch : f64,
 }
 
@@ -335,8 +337,8 @@ impl MarketDataClient {
   pub fn candles(
     &self,
     product_id : &str,
-    start : &chrono::DateTime<chrono::Utc>,
-    end : &chrono::DateTime<chrono::Utc>,
+    start : &DateTime,
+    end : &DateTime,
     granularity : &chrono::Duration,
   ) -> impl Future<Item = Vec<Candle>, Error = Error> {
     let mut uri = self.base.to_string();
@@ -400,6 +402,53 @@ pub struct Account {
   pub profile_id : String,
 }
 
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum ActivityType {
+  Transfer,
+  Match,
+  Fee,
+  Rebate,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct ActivityDetails {
+  pub order_id : Option<String>,
+  pub trade_id : Option<String>,
+  pub product_id : Option<String>,
+  pub transfer_id : Option<String>,
+  pub transfer_type : Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Activity {
+  pub id : u64,
+  pub created_at : DateTime,
+  pub amount : Decimal,
+  pub balance : Decimal,
+  #[serde(rename = "type")]
+  pub activity_type : ActivityType,
+  pub details : ActivityDetails,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum HoldType {
+  Order,
+  Transfer,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Hold {
+  pub id : String,
+  pub created_at : DateTime,
+  pub amount : Decimal,
+  #[serde(rename = "type")]
+  pub hold_type : HoldType,
+  #[serde(rename = "ref")]
+  pub hold_ref : String,
+}
+
 fn now() -> u64 {
   std::time::SystemTime::now()
     .duration_since(std::time::UNIX_EPOCH)
@@ -441,7 +490,7 @@ impl PrivateClient {
     })
   }
 
-  fn sign(&self, timestamp : u64, method : hyper::Method, path : &str, body : &str) -> String {
+  fn sign(&self, timestamp : u64, method : &hyper::Method, path : &str, body : &str) -> String {
     let mut message = timestamp.to_string();
     message.push_str(method.as_str());
     message.push_str(path);
@@ -466,7 +515,7 @@ impl PrivateClient {
       .header("cb-access-timestamp", timestamp)
       .header(
         "cb-access-sign",
-        self.sign(timestamp, hyper::Method::GET, query, "").as_str(),
+        self.sign(timestamp, &hyper::Method::GET, query, "").as_str(),
       ).body(hyper::Body::empty())
       .unwrap();
     self
@@ -482,5 +531,25 @@ impl PrivateClient {
 
   pub fn accounts(&self) -> impl Future<Item = Vec<Account>, Error = Error> {
     self.get("/accounts")
+  }
+
+  pub fn account(&self, id : &str) -> impl Future<Item = Account, Error = Error> {
+    let mut query = "/accounts/".to_string();
+    query.push_str(id);
+    self.get(&query)
+  }
+
+  pub fn ledger(&self, id : &str) -> impl Future<Item = Vec<Activity>, Error = Error> {
+    let mut query = "/accounts/".to_string();
+    query.push_str(id);
+    query.push_str("/ledger");
+    self.get(&query)
+  }
+
+  pub fn holds(&self, id : &str) -> impl Future<Item = Vec<Hold>, Error = Error> {
+    let mut query = "/accounts/".to_string();
+    query.push_str(id);
+    query.push_str("/holds");
+    self.get(&query)
   }
 }
