@@ -38,6 +38,11 @@ fn main() {
 ### Implemented
 
 - Market Data API (without pagination)
+- Private API:
+  - list accounts
+  - get an account
+  - get account history
+  - list holds
 
 ### Not implemented yet
 
