@@ -39,14 +39,16 @@ fn main() {
 
 - Market Data API (without pagination)
 - Private API:
-  - list accounts
-  - get an account
-  - get account history
-  - list holds
+  - GET requests without pagination
 
 ### Not implemented yet
 
 - pagination
-- Private API
+- Private API:
+  - POST requests
+  - DELETE requests
+  - Payment methods
+  - Coinbase accounts
+  - Reports
 - Websocket Feed
 - FIX API

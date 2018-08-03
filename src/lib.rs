@@ -495,6 +495,14 @@ pub struct Fill {
   pub side : Side,
 }
 
+#[derive(Deserialize, Debug)]
+pub struct TrailingVolume {
+  pub product_id : String,
+  pub exchange_volume : Decimal,
+  pub volume : Decimal,
+  pub recorded_at : DateTime,
+}
+
 fn now() -> u64 {
   std::time::SystemTime::now()
     .duration_since(std::time::UNIX_EPOCH)
@@ -629,5 +637,9 @@ impl PrivateClient {
     let mut query = "/fills?order_id=".to_string();
     query.push_str(id);
     self.get(&query)
+  }
+
+  pub fn trailing_volume(&self) -> impl Future<Item = Vec<TrailingVolume>, Error = Error> {
+    self.get("/users/self/trailing-volume")
   }
 }
