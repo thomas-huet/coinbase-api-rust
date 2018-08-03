@@ -481,6 +481,20 @@ pub struct Order {
   pub settled : bool,
 }
 
+#[derive(Deserialize, Debug)]
+pub struct Fill {
+  pub trade_id : u64,
+  pub product_id : String,
+  pub price : Decimal,
+  pub size : Decimal,
+  pub order_id : String,
+  pub created_at : DateTime,
+  pub liquidity : String,
+  pub fee : Decimal,
+  pub settled : bool,
+  pub side : Side,
+}
+
 fn now() -> u64 {
   std::time::SystemTime::now()
     .duration_since(std::time::UNIX_EPOCH)
@@ -599,6 +613,20 @@ impl PrivateClient {
 
   pub fn order(&self, id : &str) -> impl Future<Item = Order, Error = Error> {
     let mut query = "/orders/".to_string();
+    query.push_str(id);
+    self.get(&query)
+  }
+
+  pub fn fills(&self) -> impl Future<Item = Vec<Fill>, Error = Error> { self.get("/fills") }
+
+  pub fn fills_for_product(&self, id : &str) -> impl Future<Item = Vec<Fill>, Error = Error> {
+    let mut query = "/fills?product_id=".to_string();
+    query.push_str(id);
+    self.get(&query)
+  }
+
+  pub fn fills_for_order(&self, id : &str) -> impl Future<Item = Vec<Fill>, Error = Error> {
+    let mut query = "/fills?order_id=".to_string();
     query.push_str(id);
     self.get(&query)
   }
