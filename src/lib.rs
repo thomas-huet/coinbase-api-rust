@@ -442,11 +442,43 @@ pub enum HoldType {
 pub struct Hold {
   pub id : String,
   pub created_at : DateTime,
+  pub updated_at : Option<DateTime>,
   pub amount : Decimal,
   #[serde(rename = "type")]
   pub hold_type : HoldType,
   #[serde(rename = "ref")]
   pub hold_ref : String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum OrderType {
+  Limit,
+  Market,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Order {
+  pub id : String,
+  pub price : Option<Decimal>,
+  pub size : Option<Decimal>,
+  pub product_id : String,
+  pub side : Side,
+  pub stp : Option<String>,
+  pub funds : Option<Decimal>,
+  pub specified_funds : Option<Decimal>,
+  #[serde(rename = "type")]
+  pub order_type : OrderType,
+  pub time_in_force : Option<String>,
+  pub post_only : bool,
+  pub created_at : DateTime,
+  pub done_at : Option<DateTime>,
+  pub done_reason : Option<String>,
+  pub fill_fees : Decimal,
+  pub filled_size : Decimal,
+  pub executed_value : Decimal,
+  pub status : String,
+  pub settled : bool,
 }
 
 fn now() -> u64 {
@@ -515,7 +547,9 @@ impl PrivateClient {
       .header("cb-access-timestamp", timestamp)
       .header(
         "cb-access-sign",
-        self.sign(timestamp, &hyper::Method::GET, query, "").as_str(),
+        self
+          .sign(timestamp, &hyper::Method::GET, query, "")
+          .as_str(),
       ).body(hyper::Body::empty())
       .unwrap();
     self
@@ -550,6 +584,22 @@ impl PrivateClient {
     let mut query = "/accounts/".to_string();
     query.push_str(id);
     query.push_str("/holds");
+    self.get(&query)
+  }
+
+  pub fn orders(&self) -> impl Future<Item = Vec<Order>, Error = Error> {
+    self.get("/orders?status=all")
+  }
+
+  pub fn orders_for_product(&self, id : &str) -> impl Future<Item = Vec<Order>, Error = Error> {
+    let mut query = "/orders?status=all&product_id=".to_string();
+    query.push_str(id);
+    self.get(&query)
+  }
+
+  pub fn order(&self, id : &str) -> impl Future<Item = Order, Error = Error> {
+    let mut query = "/orders/".to_string();
+    query.push_str(id);
     self.get(&query)
   }
 }
