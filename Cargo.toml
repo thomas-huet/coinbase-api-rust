@@ -1,6 +1,6 @@
 [package]
 name = "coinbase-api"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Thomas HUET <crates@thomash.fr>"]
 description = "Client library for the Coinbase Pro API."
 repository = "https://github.com/thomas-huet/coinbase-api-rust"
